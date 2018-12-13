@@ -1,0 +1,91 @@
+##--PYSPARK--##
+import tweepy
+from textblob import TextBlob
+
+consumer_key= 'bLOuAZNzWvpy11Fpo747ycL6C'
+consumer_secret= 'NCEacdi06y7kChDgs9LDhiS3tpoCbl9A3ApqnP7JKlRQC7w6Ge'
+
+access_token='771274551892344832-f4pXF3Bu4T5Xx5UUpt9H4f72wtg18Wo'
+access_token_secret='fiPTOrnD6QeLA8CZhsydiNiPJKiVS9hgBv9aOVfDIVyO8'
+
+auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+auth.set_access_token(access_token, access_token_secret)
+
+api = tweepy.API(auth)
+
+r = range(1,10)
+l=[]
+filter = "trump"
+f= open("demoTweetData.txt","w+")
+
+public_tweets = api.search(q=filter,count=100)
+
+for tweet in public_tweets:
+	l.append(tweet.id)
+	t=tweet.text.encode('utf-8')
+	analysis = TextBlob(tweet.text)
+	polarity=analysis.sentiment.polarity
+	if polarity > 0:
+		s="POSITIVE"
+	elif polarity < 0:
+		s="NEGATIVE"
+	elif polarity == 0:
+		s="NEUTRAL"
+	subjectivity=analysis.sentiment.subjectivity
+	f.write(tweet.id_str.encode('utf-8') + "," + s + "," + str(polarity) + "," + str(subjectivity) + "\n")
+	
+l.sort()
+
+for x in r:
+	l.sort()
+	small=l[0]-1
+	public_tweets = api.search(q=filter,count=100, max_id=small)
+	for tweet in public_tweets:
+		l.append(tweet.id)
+		t=tweet.text.encode('utf-8')
+		analysis = TextBlob(tweet.text)
+		polarity=analysis.sentiment.polarity
+		if polarity > 0:
+			s="POSITIVE"
+		elif polarity < 0:
+			s="NEGATIVE"
+		elif polarity == 0:
+			s="NEUTRAL"
+		subjectivity=analysis.sentiment.subjectivity
+		f.write(tweet.id_str.encode('utf-8') + "," + s + "," + str(polarity) + "," + str(subjectivity) + "\n")
+		
+f.close()
+
+
+##--HIVE--##
+create table demoTweetData(id Bigint, sentiment String, polarity Double, subjectivity Double) Comment 'Twitter Details' ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';
+
+LOAD DATA LOCAL INPATH '/home/m/mayanky/Project/demoTweetData.txt' OVERWRITE INTO TABLE tweet;
+
+##--TERMINAL--##
+sudo ln -s /usr/lib/hive/conf/hive-site.xml /usr/lib/spark/conf/hive-site.xml
+/etc/hive/conf.cloudera.hive/hive-site.xml
+/etc/spark/conf.cloudera.spark_on_yarn/hive-site.xml
+
+##--PYSPARK--##
+from pyspark.sql import HiveContext
+hc = HiveContext(sc)
+
+positive = hc.sql("select * from demoTweetData where sentiment == 'POSITIVE'")
+negative = hc.sql("select * from demoTweetData where sentiment == 'NEGATIVE'")
+
+p = positive.map(lambda x:x)
+n = negative.map(lambda x:x)
+
+pP=(float(p.count())/(p.count()+n.count()))*100
+print pP
+
+nP=(float(n.count())/(p.count()+n.count()))*100
+print nP
+
+
+
+
+
+
+	
